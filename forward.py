@@ -74,7 +74,7 @@ class Tunnel(object):
 
         self._tunnel = None
         self._ssh_transport = None
-        self.get_sshclient_transport()
+        self._ssh_transport = self.get_sshclient_transport()
 
         # this is gross
 
@@ -94,7 +94,7 @@ class Tunnel(object):
 
     def get_sshclient_transport(self):
         self.bastionclient.connect()
-        self._ssh_transport = self.bastionclient.get_transport()
+        return self.bastionclient.get_transport()
 
     def serve_forever(self, block=True):
         if block:
