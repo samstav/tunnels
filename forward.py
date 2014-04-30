@@ -12,6 +12,7 @@ from satori import ssh
 
 
 class ForwardServer (SocketServer.ThreadingTCPServer):
+
     daemon_threads = True
     # I doubt we want this to be True ???
     allow_reuse_address = True
@@ -50,7 +51,7 @@ class Handler (SocketServer.BaseRequestHandler):
         peername = self.request.getpeername()
         chan.close()
         self.request.close()
-        print 'Tunnel closed from %r' % peername
+        print 'Tunnel closed from', peername
 
 
 class Tunnel(object):
@@ -93,7 +94,7 @@ class Tunnel(object):
 
     def get_sshclient_transport(self):
         self.bastionclient.connect()
-        self._ssh_transport.get_transport()
+        self._ssh_transport = self.bastionclient.get_transport()
 
     def serve_forever(self, block=True):
         if block:
