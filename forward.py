@@ -72,8 +72,6 @@ class Tunnel(object):
         self.bastionclient = bastionclient
 
         self._tunnel = None
-        self._tunnel_thread = None
-
         self._ssh_transport = self.bastionclient.get_transport()
 
         # this is gross
@@ -95,7 +93,7 @@ class Tunnel(object):
     def serve_forever(self, block=True):
         if block:
             self._tunnel.serve_forever()
-        threading.Thread(self._tunnel.serve_forever).start()
+        threading.Thread(target=self._tunnel.serve_forever).start()
 
     def shutdown(self):
 
