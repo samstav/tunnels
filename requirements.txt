@@ -1,0 +1,7 @@
+
+eventlet==0.14.0
+
+paramiko
+
+# satori branch
+git+git://github.com/smlstvnh/satori.git@bp/satori-localhost
