@@ -72,7 +72,8 @@ class Tunnel(object):
         self.bastionclient = bastionclient
 
         self._tunnel = None
-        self._ssh_transport = self.bastionclient.get_transport()
+        self._ssh_transport = None
+        self.get_sshclient_transport()
 
         # this is gross
 
@@ -89,6 +90,10 @@ class Tunnel(object):
 
         self._tunnel = ForwardServer(('localhost', local_port), SubHandler)
         self.local_port = self._tunnel.server_address[1]
+
+    def get_sshclient_transport(self):
+        self.bastionclient.connect()
+        self._ssh_transport.get_transport()
 
     def serve_forever(self, block=True):
         if block:
