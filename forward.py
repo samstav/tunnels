@@ -1,6 +1,8 @@
 import os
 import socket
 import select
+import threading
+
 try:
     import SocketServer
 except ImportError:
@@ -73,7 +75,6 @@ class Tunnel(object):
         self._tunnel = None
         self._tunnel_thread = None
 
-    def serve(self):
         self._ssh_transport = self.bastionclient.get_transport()
 
         # this is gross
@@ -90,8 +91,6 @@ class Tunnel(object):
             ssh_transport = self._ssh_transport
 
         self._tunnel = ForwardServer(('localhost', self.local_port), SubHandler)
-        # TODO:
-        # implement async that Nico is working on for this call
 
     def serve_forever(self, block=True):
         if block:
