@@ -8,11 +8,10 @@ except ImportError:
 
 from satori import ssh
 
-DEFAULT_REMOTE_PORT = 4000
-
 
 class ForwardServer (SocketServer.ThreadingTCPServer):
     daemon_threads = True
+    # I doubt we want this to be True ???
     allow_reuse_address = True
 
 
@@ -54,8 +53,8 @@ class Handler (SocketServer.BaseRequestHandler):
 
 class Tunnel(object):
 
-    def __init__(self, remote_host, bastionclient,
-                 remote_port=DEFAULT_REMOTE_PORT, local_port=None):
+    def __init__(self, remote_host, remote_port,
+                 bastionclient, local_port=0):
 
         # Nico,
         # perhaps this class (or this module) should be the one who handles which
@@ -68,13 +67,11 @@ class Tunnel(object):
 
         self.remote_host = remote_host
         self.remote_port = remote_port
+        self.local_port = local_port
         self.bastionclient = bastionclient
-        if not local_port:
-            self.local_port = self.get_available_localport()
-        else:
-            # check if local_port is available else raise exception
-            pass
+
         self._tunnel = None
+        self._tunnel_thread = None
 
     def serve(self):
         self._ssh_transport = self.bastionclient.get_transport()
@@ -92,22 +89,18 @@ class Tunnel(object):
             chain_port = self.remote_port
             ssh_transport = self._ssh_transport
 
-        self._tunnel = ForwardServer(('', self.local_port), SubHandler)
+        self._tunnel = ForwardServer(('localhost', self.local_port), SubHandler)
         # TODO:
         # implement async that Nico is working on for this call
-        self._tunnel.serve_forever()
 
-    def get_available_localport(self):
-        """Find an available ephemeral port and return it."""
-        found = None
-        while not found:
-            # todo lookup ephemeral ports range
-            temp = random.randint(40000, 70000)
-            # ping temp, "reserve it" and set `found` if available
-            # if temp.ok:
-            found = temp
+    def serve_forever(self, block=True):
+        if block:
+            self._tunnel.serve_forever()
+        threading.Thread(self._tunnel.serve_forever).start()
 
-        return found
+    def shutdown(self):
+
+        self._tunnel.shutdown()
 
 
 HELP = """\
@@ -128,7 +121,7 @@ def get_tunnel(targethost, targetport, sshclient):
     return Tunnel(targethost, targetport, sshclient)
 
 
-def get_sshclient(bastionhost, pkeystring, username="lnx-waldo"):
+def get_sshclient(bastionhost, pkeystring=None, username="lnx-waldo"):
 
     client = ssh.connect(bastionhost, username=username,
                          private_key=pkeystring,
