@@ -69,7 +69,6 @@ class Tunnel(object):
 
         self.remote_host = remote_host
         self.remote_port = remote_port
-        self.local_port = local_port
         self.bastionclient = bastionclient
 
         self._tunnel = None
@@ -90,7 +89,8 @@ class Tunnel(object):
             chain_port = self.remote_port
             ssh_transport = self._ssh_transport
 
-        self._tunnel = ForwardServer(('localhost', self.local_port), SubHandler)
+        self._tunnel = ForwardServer(('localhost', local_port), SubHandler)
+        self.local_port = self._tunnel.server_address[1]
 
     def serve_forever(self, block=True):
         if block:
