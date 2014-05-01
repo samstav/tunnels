@@ -3,5 +3,7 @@ eventlet==0.14.0
 
 paramiko
 
+impacket
+
 # satori branch
 git+git://github.com/smlstvnh/satori.git@bp/satori-localhost
