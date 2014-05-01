@@ -95,7 +95,7 @@ class Tunnel(object):
         sshclient.connect()
         return sshclient.get_transport()
 
-    def serve_forever(self, async=False):
+    def serve_forever(self, async=True):
         if not async:
             self._tunnel.serve_forever()
         self._tunnel_greenthread = greenthread.spawn_n(
