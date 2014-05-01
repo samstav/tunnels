@@ -4,7 +4,7 @@ tunnels
 ssh tunnels with paramiko
 
 
-### usage
+### as a psexec proxy
 ```bash
 pip install -r requirements.txt
 ```
@@ -23,6 +23,10 @@ print tunnel.address
 ... ('127.0.0.1', 59277)
 
 tunnel.serve_forever()
+
+# not yet implemented
+c2 = tunnel.get_psexecclient('localhost', 59277)
+c2.remote_execute('echo hello')
 
 ```
 
