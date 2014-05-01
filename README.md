@@ -10,16 +10,35 @@ pip install -r requirements.txt
 ```
 
 ```python
-import forward
+import tunnel
 
 bastionhost = 'my.bastion'
 pkey = open('~/.ssh/id_rsa', 'r').read()
 
-client = forward.get_sshclient(bastionhost, private_key=pkey)
-tunnel = forward.get_tunnel('windows.server', 445, client)
+client = tunnel.get_sshclient(bastionhost, private_key=pkey)
+tunnel = tunnel.connect('windows.server', 445, client)
 
 # what port was my tunnel assigned? (defaults to localhost:P)
-print tunnel.tunnel_address
-tunnel.serve_forever(async=True)
+print tunnel.address
+... ('127.0.0.1', 59277)
 
+tunnel.serve_forever()
+
+```
+
+### as an ssh proxy
+```python
+bastionhost = 'my.bastion'
+pkey = open('~/.ssh/id_rsa', 'r').read()
+
+client = tunnel.get_sshclient(bastionhost, private_key=pkey)
+tunnel = tunnel.connect('linux.server', 22, client)
+
+# what port was my tunnel assigned? (defaults to localhost:P)
+print tunnel.address
+... ('127.0.0.1', 59268)
+tunnel.serve_forever()
+
+c2 = tunnel.get_sshclient('localhost', 59268)
+c2.remote_execute('echo hello')
 ```
