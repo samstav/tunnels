@@ -57,7 +57,7 @@ class PSE(object):
         self.ssh_tunnel = tunnel.connect(self.host, self.port, self.bastion)
         self._orig_host = self.host
         self._orig_port = self.port
-        self.host, self.port = self.ssh_tunnel.target_address
+        self.host, self.port = self.ssh_tunnel.address
         self.ssh_tunnel.serve_forever(async=True)
 
     def shutdown_tunnel(self):
