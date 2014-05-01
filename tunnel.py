@@ -75,7 +75,7 @@ class Tunnel(object):
         self.target_host = target_host
         self.target_port = target_port
         self.target_address = (target_host, target_port)
-        self.tunnel_address = (tunnel_host, tunnel_port)
+        self.address = (tunnel_host, tunnel_port)
 
         self._tunnel = None
         self._tunnel_greenthread = None
@@ -86,10 +86,10 @@ class Tunnel(object):
         TunnelHandler.target_address = self.target_address
         TunnelHandler.ssh_transport = self._ssh_transport
 
-        self._tunnel = TunnelServer(self.tunnel_address, TunnelHandler)
+        self._tunnel = TunnelServer(self.address, TunnelHandler)
         # reset attribute to the port it has actually ben set to
-        self.tunnel_address = self._tunnel.server_address
-        tunnel_host, self.tunnel_port = self.tunnel_address
+        self.address = self._tunnel.server_address
+        tunnel_host, self.tunnel_port = self.address
 
     def get_sshclient_transport(self, sshclient):
         sshclient.connect()
@@ -115,7 +115,7 @@ the SSH server. This is similar to the openssh -L option.
 """
 
 
-def get_tunnel(targethost, targetport, sshclient):
+def connect(targethost, targetport, sshclient):
 
     return Tunnel(targethost, targetport, sshclient)
 
