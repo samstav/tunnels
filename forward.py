@@ -1,38 +1,46 @@
+import eventlet
+eventlet.monkey_patch()
+
+import logging
 import os
 import socket
 import select
-import threading
+import sys
 
-try:
-    import SocketServer
-except ImportError:
-    import socketserver as SocketServer
-
+from eventlet import greenthread
+from eventlet.green import SocketServer
+import paramiko
 from satori import ssh
 
+LOG = logging.getLogger(__name__)
+LOG.addHandler(logging.StreamHandler(sys.stdout))
+[h.setLevel(logging.DEBUG) for h in LOG.handlers]
+LOG.setLevel(logging.DEBUG)
 
-class ForwardServer (SocketServer.ThreadingTCPServer):
+class TunnelServer(SocketServer.ThreadingTCPServer):
 
     daemon_threads = True
-    # I doubt we want this to be True ???
     allow_reuse_address = True
 
 
-class Handler (SocketServer.BaseRequestHandler):
+class TunnelHandler(SocketServer.BaseRequestHandler):
 
     def handle(self):
         try:
             chan = self.ssh_transport.open_channel('direct-tcpip',
-                                                   (self.chain_host, self.chain_port),
+                                                   self.target_address,
                                                    self.request.getpeername())
-        except Exception as e:
-            print ('Incoming request to %s:%d failed: %s' % (self.chain_host,
-                                                              self.chain_port,
-                                                              repr(e)))
+        except Exception as exc:
+            LOG.error('Incoming request to %s:%s failed',
+                      self.target_address[0],
+                      self.target_address[1],
+                      exc_info=exc)
             return
         if chan is None:
-            print ('Incoming request to %s:%d was rejected by the SSH server.' %
-                   (self.chain_host, self.chain_port))
+            LOG.error('Incoming request to %s:%s was rejected '
+                      'by the SSH server.',
+                      self.target_address[0],
+                      self.target_address[1])
             return
 
         while True:
@@ -56,54 +64,48 @@ class Handler (SocketServer.BaseRequestHandler):
 
 class Tunnel(object):
 
-    def __init__(self, remote_host, remote_port,
-                 bastionclient, local_port=0):
+    def __init__(self, target_host, target_port,
+                 sshclient, tunnel_host='localhost',
+                 tunnel_port=0):
 
-        # Nico,
-        # perhaps this class (or this module) should be the one who handles which
-        # local_port is bound to this tunnel (hence local_port=None),
-        # that way the end instantiating the
-        # class instance can look to see where its running...
-        # this would assume that the user of this class doesnt actually care
-        # which port the Tunnel ends up on and that this class would handle any
-        # attempts to bind to a port that's already being used
+        if not isinstance(sshclient, paramiko.SSHClient):
+            raise TypeError("'sshclient' must be an instance of "
+                            "paramiko.SSHClient.")
 
-        self.remote_host = remote_host
-        self.remote_port = remote_port
-        self.bastionclient = bastionclient
+        self.target_host = target_host
+        self.target_port = target_port
+        self.target_address = (target_host, target_port)
+        self.tunnel_address = (tunnel_host, tunnel_port)
 
         self._tunnel = None
-        self._ssh_transport = None
-        self._ssh_transport = self.get_sshclient_transport()
+        self._tunnel_greenthread = None
+        self.sshclient = sshclient
+        self._ssh_transport = self.get_sshclient_transport(
+            self.sshclient)
 
-        # this is gross
+        TunnelHandler.target_address = self.target_address
+        TunnelHandler.ssh_transport = self._ssh_transport
 
-        #############################################
-        # this is a little convoluted, but lets me configure things for the Handler
-        # object.  (SocketServer doesn't give Handlers any way to access the outer
-        # server normally.)
-        #############################################
+        self._tunnel = TunnelServer(self.tunnel_address, TunnelHandler)
+        # reset attribute to the port it has actually ben set to
+        self.tunnel_address = self._tunnel.server_address
+        tunnel_host, self.tunnel_port = self.tunnel_address
 
-        class SubHandler(Handler):
-            chain_host = self.remote_host
-            chain_port = self.remote_port
-            ssh_transport = self._ssh_transport
+    def get_sshclient_transport(self, sshclient):
+        sshclient.connect()
+        return sshclient.get_transport()
 
-        self._tunnel = ForwardServer(('localhost', local_port), SubHandler)
-        self.local_port = self._tunnel.server_address[1]
-
-    def get_sshclient_transport(self):
-        self.bastionclient.connect()
-        return self.bastionclient.get_transport()
-
-    def serve_forever(self, block=True):
-        if block:
+    def serve_forever(self, async=False):
+        if not async:
             self._tunnel.serve_forever()
-        threading.Thread(target=self._tunnel.serve_forever).start()
+        self._tunnel_greenthread = greenthread.spawn_n(
+            self._tunnel.serve_forever)
+        eventlet.sleep(1)
 
     def shutdown(self):
 
         self._tunnel.shutdown()
+        self._tunnel.socket.close()
 
 
 HELP = """\
@@ -115,20 +117,13 @@ the SSH server. This is similar to the openssh -L option.
 
 def get_tunnel(targethost, targetport, sshclient):
 
-    # reasons to use satori's modified version of paramiko.SSHClient
-    #   1) hackishly tries to respond to password prompts
-    #   2) responds to demands for a TTY by reconnecting with a pseudo tty
-    #   3) prioritizes authentication mechanisms
-
-    # TODO: change this to satori.ssh and give some thought to bash.RemoteClient
     return Tunnel(targethost, targetport, sshclient)
 
 
-def get_sshclient(bastionhost, pkeystring=None, username="lnx-waldo"):
+def get_sshclient(*args, **kwargs):
 
-    client = ssh.connect(bastionhost, username=username,
-                         private_key=pkeystring,
-                         options={'StrictHostKeyChecking': False})
-
-    return client
+    kwargs.setdefault('options', {})
+    kwargs['options'].update({'StrictHostKeyChecking': False})
+    kwargs['timeout'] = None
+    return ssh.connect(*args, **kwargs)
 
