@@ -4,11 +4,13 @@ tunnels
 ssh tunnels with paramiko
 
 
-### as a psexec proxy
+
+### install dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
+### as a psexec proxy
 ```python
 import tunnel
 
