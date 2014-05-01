@@ -89,7 +89,8 @@ class PSE(object):
         
     def close(self):
         stdout,stderr = self._process.communicate('exit')
-        self.shutdown_tunnel()
+        if self.bastion:
+            self.shutdown_tunnel()
 
     def execute(self, command):
         self._process.stdin.write('%s\n' % command)
