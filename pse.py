@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()
+
 import tempfile
 import os
 import socket
@@ -11,19 +14,9 @@ import re
 from satori.ssh import SSH
 import tunnel
 
-
 class PSE(object):
 
-    #@property
-    #def prompt_pattern(self):
-    #    return self._prompt_pattern
-    #@prompt_pattern.setter
-    #def prompt_pattern(self, value):
-    #    self.
-
     _prompt_pattern = re.compile(r'^[a-zA-Z]:\\.*>$', re.MULTILINE)
-    
-    
 
     def __init__(self, host=None, password=None, username="Administrator", port=445, timeout=10, bastion=None):
         self.password = password
@@ -99,11 +92,12 @@ class PSE(object):
     def _get_output(self):
         tmp_out = ''
         while tmp_out == '':
+            eventlet.sleep(0.1)
             self._file_read.seek(0,1)
             tmp_out += self._file_read.read()
         stdout = tmp_out
         while not tmp_out == '':
-            time.sleep(0.1)
+            eventlet.sleep(0.1)
             self._file_read.seek(0,1)
             tmp_out = self._file_read.read()
             stdout += tmp_out
